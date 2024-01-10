@@ -1,6 +1,7 @@
 # Compiled files
 *.tfstate
 *.tfstate.backup
+terraform.tfvars.backup
 
 # Module-specific temporary files
 .terraform/
