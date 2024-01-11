@@ -8,6 +8,7 @@ boot_image = "your-image-name"
 # Master configuration
 # obs: too small flavors might cause diffuse errors on your installation
 master_flavor = "your-master-flavor"
+master_count = "1"
 
 # Worker configuration
 node_count = "1"

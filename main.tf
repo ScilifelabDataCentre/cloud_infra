@@ -16,6 +16,17 @@ variable ssh_key {
   default = "ssh_key.pub"
 }
 
+variable network_name {
+  default = ""
+}
+
+variable external_network_uuid {}
+
+variable dns_nameservers {
+  default = "8.8.8.8,8.8.4.4"
+  type = string
+}
+
 variable secgroup_name {
   default = ""
 }
@@ -64,7 +75,7 @@ provider "openstack" {}
 
 # Create worker nodes
 resource "openstack_compute_instance_v2" "cks-worker" {
-  count           = 2
+  count           = 1
   name            = "cks-worker"
   image_id        = "3112317c-4589-4bf4-bceb-8b090c6a0d19"
   flavor_name     = "ssc.small"
@@ -76,7 +87,8 @@ resource "openstack_compute_instance_v2" "cks-worker" {
   }
 
   network {
-    name = "NAISS 2023/7-7 Internal IPv4 Network"
+    name       = "${module.network.network_name}"
+    # name = "NAISS 2023/7-7 Internal IPv4 Network"
   }
 }
 
@@ -85,6 +97,15 @@ module "keypair" {
   source      = "./keypair"
   public_key  = "${var.ssh_key}"
   name_prefix = "${var.cluster_prefix}"
+}
+
+# Network
+module "network" {
+  source            = "./network"
+  network_name      = "${var.network_name}"
+  external_net_uuid = "${var.external_network_uuid}"
+  name_prefix       = "${var.cluster_prefix}"
+  dns_nameservers   = "${var.dns_nameservers}"
 }
 
 # Secgroup
@@ -108,8 +129,8 @@ module "master" {
   keypair_name = "${module.keypair.keypair_name}"
 
   # Network settings
-  # network_name       = "${module.network.network_name}"
-  network_name = "NAISS 2023/7-7 Internal IPv4 Network"
+  network_name       = "${module.network.network_name}"
+  # network_name = "NAISS 2023/7-7 Internal IPv4 Network"
 
   secgroup_name      = "${module.secgroup.secgroup_name}"
   assign_floating_ip = "true"
