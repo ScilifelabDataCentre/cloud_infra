@@ -45,6 +45,16 @@ variable master_flavor_id {
   default = ""
 }
 
+variable worker_count {
+  default = 1 
+}
+
+variable worker_flavor {}
+
+variable worker_flavor_id {
+  default = ""
+}
+  
 variable ssh_user {
   default = "ubuntu"
 }
@@ -55,43 +65,6 @@ variable master_as_edge {
 
 provider "openstack" {}
 
-# Create master nodes
-# resource "openstack_compute_instance_v2" "cks-master" {
-#   count           = 1
-#   name            = "cks-master"
-#   image_id        = "3112317c-4589-4bf4-bceb-8b090c6a0d19"
-#   flavor_name     = "ssc.small"
-#   key_pair = "${module.keypair.keypair_name}"
-#   security_groups = ["${module.secgroup.secgroup_name}"]
-
-#   metadata = {
-#     this = "that"
-#   }
-
-#   network {
-#     name = "NAISS 2023/7-7 Internal IPv4 Network"
-#   }
-# }
-
-# Create worker nodes
-resource "openstack_compute_instance_v2" "cks-worker" {
-  count           = 1
-  name            = "cks-worker"
-  image_id        = "3112317c-4589-4bf4-bceb-8b090c6a0d19"
-  flavor_name     = "ssc.small"
-  key_pair = "${module.keypair.keypair_name}"
-  security_groups = ["${module.secgroup.secgroup_name}"]
-
-  metadata = {
-    this = "that"
-  }
-
-  network {
-    name       = "${module.network.network_name}"
-    # name = "NAISS 2023/7-7 Internal IPv4 Network"
-  }
-}
-
 # Upload SSH key to OpenStack
 module "keypair" {
   source      = "./keypair"
@@ -100,8 +73,9 @@ module "keypair" {
 }
 
 # Network
-module "network" {
+module  "network" {
   source            = "./network"
+  count             = "${var.network_name == "" ? 1 : 0}"
   network_name      = "${var.network_name}"
   external_net_uuid = "${var.external_network_uuid}"
   name_prefix       = "${var.cluster_prefix}"
@@ -129,9 +103,9 @@ module "master" {
   keypair_name = "${module.keypair.keypair_name}"
 
   # Network settings
-  network_name       = "${module.network.network_name}"
   # network_name = "NAISS 2023/7-7 Internal IPv4 Network"
-
+  # network_name = "test-net"
+  network_name       = "${length(module.network) > 0 ? module.network[0].network_name : var.network_name}"
   secgroup_name      = "${module.secgroup.secgroup_name}"
   assign_floating_ip = "true"
   floating_ip_pool   = "${var.floating_ip_pool}"
@@ -145,4 +119,34 @@ module "master" {
   node_labels    = "${split(",", var.master_as_edge == "true" ? "role=edge" : "")}"
   node_taints    = [""]
   master_ip      = ""
+}
+
+module "worker" {
+  # Core settings
+  source      = "./node"
+  m_count       = "${var.worker_count}"
+  name_prefix = "${var.cluster_prefix}-worker"
+  flavor_name = "${var.worker_flavor}"
+  flavor_id   = "${var.worker_flavor_id}"
+  image_name  = "${var.boot_image}"
+
+  # SSH settings
+  ssh_user     = "${var.ssh_user}"
+  keypair_name = "${module.keypair.keypair_name}"
+
+  # Network settings
+  network_name       = "${length(module.network) > 0 ? module.network[0].network_name : var.network_name}"
+  secgroup_name      = "${module.secgroup.secgroup_name}"
+  assign_floating_ip = "false"
+  floating_ip_pool   = ""
+
+  # Disk settings
+  extra_disk_size = "0"
+
+  # Bootstrap settings
+  # bootstrap_file = "bootstrap/node.sh"
+  kubeadm_token  = "${var.kubeadm_token}"
+  node_labels    = ["role=node"]
+  node_taints    = [""]
+  master_ip      = "${element(module.master.local_ip_v4, 0)}"
 }
