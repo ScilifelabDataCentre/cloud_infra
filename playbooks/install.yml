@@ -1,0 +1,46 @@
+---
+- name: Check Server Alive
+  hosts: masters
+  become: true 
+  gather_facts: false  # We don't need facts for a simple ping
+
+  tasks:
+    - name: Copy SSH key to master
+      ansible.builtin.copy:
+        src: ../ssh_key  # Path to your local public key
+        dest: /home/ubuntu/.ssh/id_rsa
+        mode: "0600"  # Set the correct permissions for authorized_keys
+        owner: ubuntu  # Replace with the actual username on server_a
+
+    - name: Copy public key to master
+      ansible.builtin.copy:
+        src: ../ssh_key.pub  # Path to your local public key
+        dest: /home/ubuntu/.ssh/id_rsa.pub
+        mode: "0644"  # Set the correct permissions for authorized_keys
+        owner: ubuntu  # Replace with the actual username on server_a
+
+    - name: Copy file to remote server
+      ansible.builtin.copy:
+        src: ../bootstrap/master.sh
+        dest: /tmp/master.sh
+        mode: "0755"  # Ensure the script is executable
+
+    # - name: Execute script on remote server
+    #   ansible.builtin.command:
+    #     cmd: /tmp/master.sh
+
+    - name: Copy workers script to master
+      ansible.builtin.copy:
+        src: ../bootstrap/worker.sh
+        dest: /tmp/worker.sh
+        mode: "0755"  # Ensure the script is executable
+
+    - name: Copy script from master to workers
+      ansible.builtin.shell:
+        cmd: scp -i /home/ubuntu/.ssh/ssh_key -o StrictHostKeyChecking=no /tmp/worker.sh ubuntu@{{ item }}:/tmp/worker.sh
+      loop: "{{ groups['workers'] }}"
+
+    # - name: Execute script on Server B
+    #   ansible.builtin.shell:
+    #     cmd: ssh -i /home/ubuntu/.ssh/ssh_key -o StrictHostKeyChecking=no ubuntu@{{ item }} "sudo /tmp/worker.sh"
+    #   loop: "{{ groups['workers'] }}"
