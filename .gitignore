@@ -23,3 +23,6 @@ terraform.rc
 # Ignore ssh keys
 ssh_key.pub
 ssh_key
+
+# Ignore inventory file
+inventory.ini

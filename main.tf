@@ -144,9 +144,27 @@ module "worker" {
   extra_disk_size = "0"
 
   # Bootstrap settings
-  # bootstrap_file = "bootstrap/node.sh"
+  # bootstrap_file = "bootstrap/worker.sh"
   kubeadm_token  = "${var.kubeadm_token}"
   node_labels    = ["role=node"]
   node_taints    = [""]
   master_ip      = "${element(module.master.local_ip_v4, 0)}"
+}
+
+# Generate Ansible inventory (identical for each cloud provider)
+module "generate-inventory" {
+  source             = "./common/inventory"
+  cluster_prefix     = "${var.cluster_prefix}"
+  ssh_user           = "${var.ssh_user}"
+  master_hostnames   = module.master.hostnames        # No need to access the first element
+  master_public_ip   = module.master.public_ip        # No need to access the first element
+  master_private_ip  = module.master.local_ip_v4      # No need to access the first element
+  worker_count       = var.worker_count
+  worker_hostnames   = module.worker.hostnames        # No need to access the first element
+  worker_public_ip   = module.worker.public_ip        # No need to access the first element
+  worker_private_ip  = module.worker.local_ip_v4      # No need to access the first element
+}
+
+output "test" {
+  value = module.generate-inventory.master_hostnames
 }

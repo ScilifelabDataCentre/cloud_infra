@@ -57,16 +57,20 @@ variable master_ip {
 
 # Bootstrap
 # data "template_file" "instance_bootstrap" {
-#   template = "${file("${path.root}/../${ var.bootstrap_file }")}"
+#   template = file("${path.root}/${var.bootstrap_file}")
 
-#   vars {
-#     kubeadm_token = "${var.kubeadm_token}"
-#     master_ip     = "${var.master_ip}"
-#     node_labels   = "${join(",", var.node_labels)}"
-#     node_taints   = "${join(",", var.node_taints)}"
-#     ssh_user      = "${var.ssh_user}"
-#   }
+  # template_vars {
+  #   kubeadm_token = "${var.kubeadm_token}"
+  #   master_ip     = "${var.master_ip}"
+  #   node_labels   = "${join(",", var.node_labels)}"
+  #   node_taints   = "${join(",", var.node_taints)}"
+  #   ssh_user      = "${var.ssh_user}"
+  # }
+
+# data "template_file" "cloud_init_template" {
+#   template = file("${path.root}/${var.bootstrap_file}")
 # }
+
 
 # Create instances
 resource "openstack_compute_instance_v2" "instance" {
@@ -82,7 +86,7 @@ resource "openstack_compute_instance_v2" "instance" {
   }
 
   security_groups = ["${var.secgroup_name}"]
-  # user_data       = "${data.template_file.instance_bootstrap.rendered}"
+  # user_data       = "${data.template_file.cloud_init_template.rendered}"
 }
 
 # Allocate floating IPs (optional)
@@ -112,21 +116,16 @@ resource "openstack_compute_volume_attach_v2" "attach_extra_disk" {
   volume_id   = "${element(openstack_blockstorage_volume_v2.extra_disk.*.id, count.index)}"
 }
 
-# Module outputs
-output "extra_disk_device" {
-  value = ["${openstack_compute_volume_attach_v2.attach_extra_disk.*.device}"]
-}
-
 output "local_ip_v4" {
-  value = ["${openstack_compute_instance_v2.instance.*.network.0.fixed_ip_v4}"]
+  value = "${openstack_compute_instance_v2.instance.*.network.0.fixed_ip_v4}"
 }
 
 output "public_ip" {
-  value = ["${openstack_compute_floatingip_v2.floating_ip.*.address}"]
+  value = "${openstack_compute_floatingip_v2.floating_ip.*.address}"
 }
 
 output "hostnames" {
-  value = ["${openstack_compute_instance_v2.instance.*.name}"]
+  value = "${openstack_compute_instance_v2.instance.*.name}"
 }
 
 # output "node_labels" {
